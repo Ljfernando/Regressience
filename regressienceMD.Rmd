@@ -717,21 +717,21 @@ regressience <- function(X,
 ```
 
 
-```{r FinalStandardized&Transformed, warning=FALSE}
+```{r FinalStandardized&Transformed, eval=FALSE, warning=FALSE}
 #Standardized dataset with transformed response variable
 train <- read.csv("FinalStandardized&Transformed.csv", header = TRUE)
 
 regressience(X = train[,-21], y = train$SalePrice)
 ```
 
-```{r FinalStandardized, warning=FALSE}
+```{r FinalStandardized, eval=FALSE, warning=FALSE}
 #Standardized dataset with non-transformed response variable
 train <- read.csv("FinalStandardized.csv", header = TRUE)
 
 regressience(X = train[,-21], y = train$SalePrice)
 ```
 
-```{r FinalRaw, warning=FALSE}
+```{r FinalRaw, eval=FALSE, warning=FALSE}
 #Non-standard and non-transformed
 train <- read.csv("FinalRaw.csv", header = TRUE)
 
@@ -744,7 +744,7 @@ regressience(X = train[,-21], y = train$SalePrice)
 regressience(X = Boston[, -14], y = Boston$medv)
 ```
 
-```{r FinalHitters, warning=FALSE}
+```{r FinalHitters, eval=FALSE, warning=FALSE}
 #Using built-in Hitters dataset
 Hitters <- Hitters[which(!is.na(Hitters$Salary)),]
 

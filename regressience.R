@@ -34,7 +34,7 @@ lm.cv <- function(X, y){
   cat("Linear Model Formula: y~", paste(names(X), collapse = " + "), "\n")
   
   # Vector containing different values of k-folds
-  k <- c(5, 10, 25)
+  k <- c(2, 5, 10, 15)
   
   # Empty vector to store MSE values
   k.cv.error <- rep(0, length(k))
@@ -84,9 +84,10 @@ lm.cv <- function(X, y){
              fill = "green") + 
     geom_text(aes(x = factor(as.numeric(names(k.cv.error))),
                   y = k.cv.error/2),
-                  label= k.cv.error, color = "black") + 
+              label= k.cv.error, color = "black") + 
     labs(x = ("Number of Folds"), y = "MSE",
-         title = "MSE Values For Different Values of K in K-Fold Cross Validations")
+         title = "MSE Values For Different Values of K in K-Fold Cross Validations") +
+    coord_flip()
   
   return(list(plot = myplot,
               errors = k.cv.error,
@@ -94,7 +95,7 @@ lm.cv <- function(X, y){
               mse = k.cv.error[min.cv]))
 }
 
-variable.selection <- function(X, y, metric, nvmax = ncol(X) - 2, nbest = 1){
+variable.selection <- function(X, y, metric, nvmax, nbest){
   # Performs subset selection methods using predictors in X and target y
   # Evaluates the best combination of features based on provided metric
   #
@@ -102,7 +103,9 @@ variable.selection <- function(X, y, metric, nvmax = ncol(X) - 2, nbest = 1){
   #   X: Dataframe of predictors
   #   y: Vector of target values
   #   metric: Type of metric used to evaluate the predictor combination
-  #           Possible values include rsq, rss, adjr2, cp or bic
+  #           Possible values include rsq, rss, adjr2, cp, bic
+  #   nvmax: Maximum size of subsets to examine
+  #   nbest: Number of subsets of each size to record
   #
   # Returns:
   #   List containing the following elements:
@@ -124,7 +127,7 @@ variable.selection <- function(X, y, metric, nvmax = ncol(X) - 2, nbest = 1){
   forward.fit = regsubsets(y ~., data = X,
                            nvmax = nvmax, nbest = nbest, method = "forward")
   backward.fit = regsubsets(y~., data = X,
-                           nvmax = nvmax, nbest = nbest, method = "backward")
+                            nvmax = nvmax, nbest = nbest, method = "backward")
   
   #Creating summary info objects to be used later to extract optimal models
   best.summary <- summary(best.fit)
@@ -152,14 +155,13 @@ variable.selection <- function(X, y, metric, nvmax = ncol(X) - 2, nbest = 1){
       backward.model <- which.max(eval(parse(text = paste("backward.summary$", metric, sep = ""))))
     }
     
-    cat(paste("Below are the combinations of variables whose models provided the best ", metric, " value.\n\n", sep = ""))
-    cat(paste(backward.model, " Variables for backward stepwise selection method: ", paste(names(coef(backward.fit, backward.model))[-1], collapse = ", "), "\n", sep = ""))
+    cat(paste("Below are the combinations of variables whose models provided the best ", metric, " value.\n", sep = ""))
     
     
     myplot1 <- ggplot() +
       geom_point(mapping = aes(x = factor(1:length(eval(parse(text = paste("best.summary$", metric, sep = ""))))),
                                y = eval(parse(text = paste("best.summary$", metric, sep = ""))),
-                                        color = "Best")) +
+                               color = "Best")) +
       geom_point(mapping = aes(x = factor(1:length(eval(parse(text = paste("forward.summary$", metric, sep = ""))))),
                                y = eval(parse(text = paste("forward.summary$", metric, sep = ""))),
                                color = "Forward")) +
@@ -168,9 +170,9 @@ variable.selection <- function(X, y, metric, nvmax = ncol(X) - 2, nbest = 1){
                                color = "Backward")) +
       labs(x = "Number of Predictors", y = toupper(metric),
            colour = "Subset Method",
-           title = paste(toupper(metric), " Values for Variable Selection Methods", sep = ""))
- 
-   
+           title = paste(toupper(metric), " Values for Variable Selection Methods", sep = "")) 
+    
+    
     cat("\n\nCalculating MSE For Each Combination of Predictors That Gave The Best Metric Value of Each Selection Algorithm\n")
     
     # Running lm.cv() for each optimal model size from each selection method
@@ -178,7 +180,7 @@ variable.selection <- function(X, y, metric, nvmax = ncol(X) - 2, nbest = 1){
     cat(paste(best.model, " Variables for best subset selection method\n", sep = ""))
     sub.best <- lm.cv(X = X[, names(coef(best.fit, best.model))[ -1]], y = y)
     cat("Forward Subset Selection: \n")
-    cat(paste(forward.model, " Variables for forward stepwise selection method.\n", "\n", sep = ""))
+    cat(paste(forward.model, " Variables for forward stepwise selection method.\n", sep = ""))
     sub.forward <- lm.cv(X = X[, names(coef(forward.fit, forward.model))[-1]], y = y)
     cat("Backward Subset Selection: \n")
     cat(paste(backward.model, " Variables for backward stepwise selection method.\n", sep = ""))
@@ -197,10 +199,11 @@ variable.selection <- function(X, y, metric, nvmax = ncol(X) - 2, nbest = 1){
                mapping = aes(x = Method, y = MSE, fill = Method),
                show.legend = FALSE) + 
       geom_text(data = subset.frame,
-               mapping = aes(x = Method, y = MSE/2, label = MSE),
-               color = "white") +
-      labs(title = "MSE Value For Each Subset Selection Method")
-      
+                mapping = aes(x = Method, y = MSE/2, label = MSE),
+                color = "white") +
+      labs(title = "MSE Value For Each Subset Selection Method") +
+      coord_flip()
+    
     
     return(list(metricPlot = myplot1,
                 msePlot = myplot2,
@@ -210,7 +213,7 @@ variable.selection <- function(X, y, metric, nvmax = ncol(X) - 2, nbest = 1){
                 best.fit = sub.best,
                 forward.fit = sub.forward,
                 backward.fit = sub.backward))
-    }
+  }
   else
     #Enters here if metric provided is not valid
     print("Invald Metric.")
@@ -235,7 +238,7 @@ shrinkage <- function(X, y, k, alpha){
   #     mse: MSE value using optimal lambda parameter
   #     coeffs: Coefficient estimates using optimal lambda parameter
   #     shrink.fit: glmnet object of regularized linear model
-
+  
   set.seed(1)
   
   grid = seq(0, 100, 0.1) # Possible values for lambda
@@ -301,7 +304,7 @@ both.shrinkage <- function(X, y, k){
   # Obtaining the glmnet models
   ridge.out <- ridge$shrink.fit
   lasso.out <- lasso$shrink.fit
-
+  
   # Plotting results to compare methods
   myplot <- ggplot() + 
     geom_line(mapping = aes(x = ridge.out$lambda, y = ridge.out$cvm, color = "ridge"), size = 1) + 
@@ -316,7 +319,7 @@ both.shrinkage <- function(X, y, k){
               lasso = lasso))
 }
 
-regressTree <- function(X, y, k){
+regressTree <- function(X, y, k, control){
   # Runs a regression tree algorithm using predictor space X on target y
   # and runs k-fold cv to evaluate each model. Utilizes cost-complexity pruning to
   # evaluate subtrees and prune the tree accordingly. Prints information and develops plots
@@ -326,7 +329,9 @@ regressTree <- function(X, y, k){
   #   X: Dataframe of predictors
   #   y: Vector of target values
   #   k: number of folds used for CV
-  #
+  #   control: REGRESSION TREE; list of options passed into rpart.control() that control the rpart
+  #             algorithm (default is the default in rpart.control())
+  
   # Returns:
   #   List containing the following elements:
   #     mse: average mse from CV
@@ -344,11 +349,11 @@ regressTree <- function(X, y, k){
   # First we create k models and evaluate their test accuracy.
   # We then average all the test accuracies to get an average mse
   for(i in 1:k){
-
+    
     train <- which(folds != i) # creating subset for current cv fold
-
-    tree.fit <- rpart(y~., data = X, subset = train) # Creating tree model
-
+    
+    tree.fit <- rpart(y~., data = X, subset = train, control = control) # Creating tree model
+    
     trees.list[[i]] <- tree.fit # Adding to list
     
     # Following code accesses the cp value with the lowest cv error
@@ -357,7 +362,7 @@ regressTree <- function(X, y, k){
     prune.tree <- prune(tree.fit, cp = best) # Pruning tree based on above cp value
     
     tree.pred <- predict(prune.tree, newdata = X[-train, ]) # calculating predictions from model
-
+    
     cv.error[i] <-  mean((tree.pred - y[folds == i])^2, na.rm = TRUE)
   }
   
@@ -368,7 +373,7 @@ regressTree <- function(X, y, k){
   par(mfrow = c(1,3))
   
   tree.fit <- trees.list[[which.min(cv.error)]] # Accessing cv model with lowest cv mse
-
+  
   
   rpart.plot(tree.fit, main = "Full Tree (unpruned)") # Plotting full tree
   
@@ -390,11 +395,11 @@ regressTree <- function(X, y, k){
   print(pruned)
   
   return (list(mse = mse,
-              tree = tree.fit,
-              prunedTree = pruned))
+               tree = tree.fit,
+               prunedTree = pruned))
 }
 
-baggingAndRF <- function(X, y, k){
+baggingAndRF <- function(X, y, k, maxnodes){
   # Runs a bagging trees and random forests using predictor space X on target y
   # and runs k-fold cv to evaluate each model. The only difference between bagged trees
   # and the random forest algorithm is the hyperparameter mtry which specifies the number of
@@ -405,7 +410,8 @@ baggingAndRF <- function(X, y, k){
   #   X: Dataframe of predictors
   #   y: Vector of target values
   #   k: number of folds used for CV
-  #
+  #   maxnodes: Maximum number of terminal nodes a tree in the forest can have 
+  #             
   # Returns:
   #   List containing the following elements:
   #     mse.bag: CV mse from bagging trees algorithm
@@ -427,7 +433,8 @@ baggingAndRF <- function(X, y, k){
     # Creating bagging model
     # notice mtry=ncol(X) which makes this a bagging algorithm as opposed to random forest
     bag.fit <- randomForest(y~., data = X, subset = train,
-                            mtry = ncol(X), importance = TRUE)
+                            mtry = ncol(X), importance = TRUE,
+                            maxnodes = maxnodes)
     
     yhat.bag = predict(bag.fit ,newdata = X[-train ,]) #Calculating predictions
     cv.error[i] <- mean((yhat.bag - y[-train])^2) #Populating cv.error array
@@ -439,7 +446,7 @@ baggingAndRF <- function(X, y, k){
   cat(paste("Using ", ncol(X), " Predictors to Construct Each Tree." ))
   
   cat("\n\n~~~~~~~~Running Random Forest~~~~~~~~\n\n")
-
+  
   # Same deal as above
   set.seed(1)
   folds = sample(1:k, nrow(X), replace = TRUE)
@@ -454,7 +461,8 @@ baggingAndRF <- function(X, y, k){
     
     # Notice mtry = numPred
     bag.fit <- randomForest(y~., data = X, subset = train,
-                            mtry = numPred, importance = TRUE)
+                            mtry = numPred, importance = TRUE,
+                            maxnodes = maxnodes)
     
     yhat.bag = predict(bag.fit ,newdata = X[-train ,])
     cv.error[i] <- mean((yhat.bag - y[-train])^2)
@@ -467,7 +475,7 @@ baggingAndRF <- function(X, y, k){
               mse.rf = mse.rf))
 }
 
-knn.regression <- function(X, y){
+knn.regression <- function(X, y, algorithm){
   # Run K nearest neighbors algorithm that predicts the target value y
   # given the predictor space X where each prediction is the average target value
   # of the K nearest neighbors based on euclidean distance.
@@ -475,6 +483,8 @@ knn.regression <- function(X, y){
   # Args:
   #   X: Dataframe of predictors
   #   y: Vector of target values
+  #   algorithm: KNN; Specific nearest neighbor search algorithm. 
+  #             (default is the same as the knn.reg() default)
   #
   # Returns:
   #   List containing the following elements:
@@ -493,12 +503,12 @@ knn.regression <- function(X, y){
   #Creating a model for each value K and storing its mse
   
   for(i in 1:6){
-    knn.fit <- knn.reg(train = X, y = y, k = k.vals[i])
-
+    knn.fit <- knn.reg(train = X, y = y, k = k.vals[i], algorithm = algorithm)
+    
     mse.loocv <- knn.fit$PRESS/knn.fit$n # Calculates the mse of respective model
-
+    
     loocv.errors[i] <- mse.loocv
-
+    
     knn.models[[i]] <- knn.fit
   }
   
@@ -518,7 +528,8 @@ knn.regression <- function(X, y){
     geom_text(mapping = aes(y = mse/2, label = loocv.errors), color = "white") +
     labs(title = "KNN LOOCV MSE for Different Values K",
          x = "Nearest Neighbors",
-         y = "LOOCV MSE")
+         y = "LOOCV MSE") +
+    coord_flip()
   
   print(myplot)
   return(list(plot = myplot,
@@ -576,24 +587,45 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 
 
 
-regressience <- function(X, y, sub.metric="bic"){
-  #...
+regressience <- function(X,
+                         y,
+                         metric = "bic",
+                         nvmax = ncol(X) - 2,
+                         nbest = 1,
+                         control = rpart.control(),
+                         maxnodes = NULL,
+                         algorithm=c("kd_tree", "cover_tree", "brute")){
+  # Regressience is a "one-stop-shop" regression function that conducts various regression
+  # algorithms to predict the response variable y based on the predictor space X.
+  # Those algorithms include linear regression (with subset selection methods), shrinkage
+  # methods, regression tree ensembles and K nearest neighbors(KNN). Resulting information     
+  # regarding each modeling fit are printed to the console in addition to supplemental 
+  # explanatory plots.
+  # 
   #
   # Args:
   #   X: Dataframe of predictors
   #   y: Vector of target values
-  #   sub.metric: optional string providing the subset selection metric
-  #
-  # Returns: 
-  #   List containing the following elements:
-  #     plot: ggplot object that compares all models and their respective mses
-  #     mse.df: Dataframe object with names of models and respective mses
-  #     lm: lm.cv model object on full dataset from lm.cv()
-  #     subset: variable.selection() object
-  #     shrinkage: both.shrinkage() object
-  #     trees: regressTree() object
-  #     bagAndRF: baggingAndRF() object
-
+  #   sub.metric: SUBSET SELECTION; optional string providing the subset selection metric
+  #       (cp, bic, adjr2, r2)
+  #   metric: SUBSET SELECTION; Type of metric used to evaluate the predictor combination
+  #           Possible values include rsq, rss, adjr2, cp or the default bic
+  #   nvmax: SUBSET SELECTION; Maximum size of subsets to examine (default is predictor space - 2)
+  #   nbest: SUBSET SELECTION; Number of subsets of each size to record (default is 1)
+  #   control: REGRESSION TREE; list of options passed into rpart.control() that control the rpart
+  #             algorithm (default is the default in rpart.control())
+  #   maxnodes: TREE ENSEMBLE; Maximum number of terminal nodes a tree in the forest can have 
+  #             (if NULL, default is trees are grown to maximum possible size)
+  #   algorithm: KNN; Specific nearest neighbor search algorithm. 
+  #             (default is the same as the knn.reg() default)
+  #               
+  
+  #Ensuring proper data frame and response variables are inputted.
+  stopifnot(is.data.frame(X) | is.matrix(X),
+            dim(X)[1] == length(y),
+            is.vector(y),
+            is.numeric(y),
+            !anyNA(y) & !anyNA(X))
   #Creating working dataframe with dummy variables
   X <- as.data.frame(model.matrix(y~., X)[, -1])
   
@@ -601,25 +633,23 @@ regressience <- function(X, y, sub.metric="bic"){
   lm.fit <- lm.cv(X = X, y = y)
   
   #Running subset selection methods
-  sub.select <- variable.selection(X = X, y = y, metric = sub.metric)
+  sub.select <- variable.selection(X = X, y = y,  metric = metric, nvmax = nvmax, nbest = nbest)
   
   #Running shrinkage methods
   shrinkage <- both.shrinkage(X = X, y = y, k = lm.fit$bestK)
   
   #Plotting all ggplot objects from the above calls
   multiplot(lm.fit$plot, sub.select$metricPlot, sub.select$msePlot, shrinkage$plot, cols = 2)
-  #multiplot(lm.fit$plot, shrinkage$plot, cols = 2)
-  #multiplot(sub.select$metricPlot, sub.select$msePlot, cols = 2)
-
+  
   #Running regression tree method
-  trees <- regressTree(X = X, y = y, k = 5)
+  trees <- regressTree(X = X, y = y, k = lm.fit$bestK, control = control)
   
   #Running baggin and random forest methods
-  bagAndRF <- baggingAndRF(X = X, y = y, k = 5)
+  bagAndRF <- baggingAndRF(X = X, y = y, k = lm.fit$bestK, maxnodes = maxnodes)
   
   #Running knn methods
-  knn.regression <- knn.regression(X = X, y = y)
-
+  knn.regression <- knn.regression(X = X, y = y, algorithm = algorithm)
+  
   #Printing the MSE for each model
   cat("\n\n~~~~~~~~~~~~~Each Different Model's CV MSE~~~~~~~~~~~~~\n\n")
   cat(paste("Full Linear Regression MSE: ", lm.fit$mse, "\n", sep = ""))
@@ -661,7 +691,7 @@ regressience <- function(X, y, sub.metric="bic"){
   mse.df <- data.frame(models = models,
                        mse = models.mse)
   
-
+  
   #Creating bar plot to compare the all models
   ggplot(data = mse.df, mapping = aes(x = models, y = mse)) + 
     geom_col(mapping = aes(fill = mse)) + 
@@ -669,14 +699,6 @@ regressience <- function(X, y, sub.metric="bic"){
     coord_flip() + 
     scale_fill_gradient(low="#00BFC4", high="purple") + 
     labs(title = "MSE Values Of Each Model")
-  
-  # return(list(plot = myplot,
-  #             mse.df = mse.df,
-  #             lm = lm.fit,
-  #             subset = sub.select,
-  #             shrinkage = shrinkage,
-  #             trees = trees,
-  #             bagAndRF = bagAndRF))
 }
 
 
