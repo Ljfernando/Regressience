@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 #Introduction
-This is "one-stop shop" regression function runs various regression algorithms on a given data set and returns information regarding each model fit and compares their cross validated results. The following regression algorithms are utilized in the main function.
+This "one-stop shop" regression function runs various regression algorithms on a given data set and returns information regarding each model fit and compares their cross validated results. The purpose of **regressience** is to help the user in deciding which regression algorithm performs best on the given dataset. The following regression algorithms are utilized in the main function.
 
 * Linear Regression (w/[Variable Selection methods](http://www.biostat.jhsph.edu/~iruczins/teaching/jf/ch10.pdf))
 * Shrinkage Methods
