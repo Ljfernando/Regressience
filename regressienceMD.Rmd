@@ -1,30 +1,68 @@
 ---
-title: "regressienceMD"
-author: "Lance J. Fernando"
-date: "5/8/2017"
-output: html_document
+title: "Regressience"
+subtitle: "Final Project for BSDS 100 Intro to Data Science, Spring 2017 at The University of San Francisco"
+author: "Fernando, Lance and Whang, Ien"
+output:
+  html_document:
+    toc: true # table of content true
+    number_sections: true  ## if you want number sections at each table header
+    theme: cosmo  # many options for theme, this one is my favorite.
 ---
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+#Introduction
+This is "one-stop shop" regression function runs various regression algorithms on a given data set and returns information regarding each model fit and compares their cross validated results. The following regression algorithms are utilized in the main function.
+
+* Linear Regression (w/[Variable Selection methods](http://www.biostat.jhsph.edu/~iruczins/teaching/jf/ch10.pdf))
+* Shrinkage Methods
+    + [Ridge Regression](https://onlinecourses.science.psu.edu/stat857/node/155)
+    + [The Lasso](https://en.wikipedia.org/wiki/Lasso_(statistics))
+* [Regression Trees](http://www.stat.cmu.edu/~cshalizi/350-2006/lecture-10.pdf) and [Tree Ensembles](https://en.wikipedia.org/wiki/Ensemble_learning)
+* [K-nearest neighbors](https://en.wikipedia.org/wiki/K-nearest_neighbors_algorithm)
+
+The following libraries were utilized in the functions:
+
+* **ISLR** and **MASS**: access to built-in R datasets
+* **ggplot2**: plotting purposes
+* **glmnet**: Ridge and lasso algorithms
+* **leaps**: Variable selection algorithms
+* **rpart** and **rpart.plot**: Regression tree algorithms and plotting
+* **FNN**: KNN regression algorithms
+* **maggritr**: any piping commands
+
+
+***
+#Approach
+To conduct all the functionality in one single function would generate a huge, complex function within itself. Therefore, to easily debug the program we essentially created a function for each regression algorithm. Each individual function takes as input an n x p data frame X and a seperate target vector y. In order for the function to work, it is essential to exclude the target variable from the data frame. Each function will print information regarding the model fit and return a list of significant objects such as a ggplot object or the mse of the model.
+
+Each model is fit to the data using [K-fold cross validation](https://en.wikipedia.org/wiki/Cross-validation_(statistics)#k-fold_cross-validation). The value K is determined by generated linear model results where K equals 5, 10 and 15. The value K of the linear model with the lowest MSE is then utilized throughout the rest of the program. In the main regressience() function, each individual regression function is called and the results are outputted. It then combines those results and produces a plot comparing the MSE result for each model. All that is needed to run this function is a cleaned dataset and target vector. Additional arguments that provide specific details for the individual algorithms can also be set. To run the function on your own dataset, simply call this function:
+```{r example, eval=FALSE}
+regressience(X = your_data, y = your_target_vector)
+```
+
+
+
+***
+#R Code
+Given that all the libraries are loaded and ready to go, simply run this block to get **regressience** ready to go. Below is all the required code.
 ```{r load, include = FALSE}
 rm(list = ls())
 cat("\014")
 library(ISLR)
 library(MASS)
-library(DAAG)
 library(glmnet)
 library(leaps)
 library(ggplot2)
 library(rpart)
-library(randomForest)
 library(rpart.plot)
-library(e1071)
+library(randomForest)
 library(FNN)
 library(magrittr)
-library(boot)
 setwd("/Users/lancefernando/Desktop/USFSpring2017/BSDS100/Final/")
 ```
 
@@ -717,21 +755,55 @@ regressience <- function(X,
 ```
 
 
-```{r FinalStandardized&Transformed, eval=FALSE, warning=FALSE}
+***
+#Running The Function
+
+Below are the results of running **regressience** on the *Boston* dataset from the *MASS* library consisting of housing 506 rows and 14 columns describing housing values in the suburbs of boston. Our target variable is *medv* which is the median value of owner-occupied homes in $1000s.
+```{r FinalBoston, warning=FALSE}
+#Using built-in Boston dataset
+regressience(X = Boston[, -14], y = Boston$medv)
+```
+
+
+#Future Modifications
+As this is the very first version of **regressience**, below are many ways we would like to build onto it in the future.
+
+**Built-in Standardization and Variable Transformations**
+We would like to add functionality to standardize variables with extremely large ranges which will help linear regression methods by putting less weight on the intercept coefficient. In addition, we would like to be able to detect skewed variables and to apply transformations to "unskew" such variables.
+
+**Additional Hyperparameter Tuning w/Grid Searching**
+In order for each individual model to output the best results they can, it is important to grid search the hyperparameters required in the algorithm. This will give the results for best possible models, making it more valid to compare between one another.
+
+**Classification Functionality**
+**Regressience** currently can only predict a continuous target variable. We would like to add the functionality for it to perform classification as well.
+
+**More Cohesiveness**
+Each individual algorithm is called independent from one another, despite the value K that is determined for K-fold cross validation. We would like to increase the cohesiveness between the algorithms such that a result from one algorithm will help drive decisions on how to run the other algorithms. 
+
+**Robust**
+Overall we would like to continue to make our function more robust to handle even the dirtiest of datasets.
+```{r FinalHitters, include=FALSE, eval=FALSE, warning=FALSE}
+#Using built-in Hitters dataset
+Hitters <- Hitters[which(!is.na(Hitters$Salary)),]
+
+regressience(X = Hitters[, -19], y = Hitters$Salary)
+```
+
+```{r FinalStandardized&Transformed, include=FALSE, eval=FALSE, warning=FALSE}
 #Standardized dataset with transformed response variable
 train <- read.csv("FinalStandardized&Transformed.csv", header = TRUE)
 
 regressience(X = train[,-21], y = train$SalePrice)
 ```
 
-```{r FinalStandardized, eval=FALSE, warning=FALSE}
+```{r FinalStandardized, include=FALSE, eval=FALSE, warning=FALSE}
 #Standardized dataset with non-transformed response variable
 train <- read.csv("FinalStandardized.csv", header = TRUE)
 
 regressience(X = train[,-21], y = train$SalePrice)
 ```
 
-```{r FinalRaw, eval=FALSE, warning=FALSE}
+```{r FinalRaw, include=FALSE, eval=FALSE, warning=FALSE}
 #Non-standard and non-transformed
 train <- read.csv("FinalRaw.csv", header = TRUE)
 
@@ -739,14 +811,3 @@ regressience(X = train[,-21], y = train$SalePrice)
 ```
 
 
-```{r FinalBoston, warning=FALSE}
-#Using built-in Boston dataset
-regressience(X = Boston[, -14], y = Boston$medv)
-```
-
-```{r FinalHitters, eval=FALSE, warning=FALSE}
-#Using built-in Hitters dataset
-Hitters <- Hitters[which(!is.na(Hitters$Salary)),]
-
-regressience(X = Hitters[, -19], y = Hitters$Salary)
-```
